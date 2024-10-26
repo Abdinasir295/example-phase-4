@@ -1,16 +1,14 @@
-from flask_restful import Api, Resource, reqparse
-from flask import request, jsonify
-from models import db, User, Student, Teacher, Course,CourseTeacher, Enrollment
+from flask_restful import Api, Resource
+from flask import request, session
+from models import db, User, Student, Teacher, Course, Enrollment
 from schemas import (user_schema, student_schema, teacher_schema, 
-                     course_schema, enrollment_schema, ValidationError,
+                     course_schema, ValidationError,
                      validate_user_data, validate_student_data, 
                      validate_teacher_data, validate_course_data, 
                      validate_enrollment_data)
-from flask_jwt_extended import jwt_required, create_access_token, get_jwt_identity, get_jwt
-from auth import role_required
+from auth import role_required, login_required
 
 api = Api()
-
 class UserRegistration(Resource):
     def post(self):
         data = request.get_json()
@@ -18,28 +16,57 @@ class UserRegistration(Resource):
             validate_user_data(data)
         except ValidationError as err:
             return {'errors': err.messages}, 400
-        
         if User.query.filter_by(username=data['username']).first():
             return {'message': 'User already exists'}, 400
-        
         new_user = User(username=data['username'], email=data['email'], role=data['role'])
         new_user.set_password(data['password'])
         db.session.add(new_user)
         db.session.commit()
-        
         return {'message': 'User created successfully'}, 201
 
 class UserLogin(Resource):
     def post(self):
-        data = request.get_json()
-        user = User.query.filter_by(username=data['username']).first()
-        if user and user.check_password(data['password']):
-            access_token = create_access_token(identity=user)
-            return {'access_token': access_token}, 200
-        return {'message': 'Invalid credentials'}, 401
+        try:
+            data = request.get_json()
+            print("Login attempt with data:", data)  # Debug print
+
+            if not data:
+                return {'message': 'No input data provided'}, 400
+
+            username = data.get('username')
+            password = data.get('password')
+
+            if not username or not password:
+                return {'message': 'Username and password are required'}, 400
+
+            user = User.query.filter_by(username=username).first()
+            print(f"Found user: {user}")  # Debug print
+
+            if user and user.check_password(password):
+                session['user_id'] = user.id
+                session['role'] = user.role
+
+                response_data = {
+                    'message': 'Logged in successfully',
+                    'role': user.role,
+                    'username': user.username
+                }
+                print("Login successful:", response_data)  # Debug print
+                return response_data, 200
+
+            return {'message': 'Invalid username or password'}, 401
+
+        except Exception as e:
+            print(f"Login error: {str(e)}")  # Debug print
+            return {'message': 'An error occurred during login'}, 500
+
+class UserLogout(Resource):
+    def post(self):
+        session.clear()
+        return {'message': 'Logged out successfully'}, 200
 
 class UserResource(Resource):
-    @jwt_required()
+    @login_required
     @role_required('admin')
     def get(self, user_id=None):
         if user_id:
@@ -48,7 +75,7 @@ class UserResource(Resource):
         users = User.query.all()
         return user_schema.dump(users, many=True)
 
-    @jwt_required()
+    @login_required
     @role_required('admin')
     def put(self, user_id):
         user = User.query.get_or_404(user_id)
@@ -80,7 +107,7 @@ class UserResource(Resource):
         
         return {'message': 'User updated successfully'}
     
-    @jwt_required()
+    @login_required
     @role_required('admin')
     def delete(self, user_id):
         user = User.query.get_or_404(user_id)
@@ -89,7 +116,7 @@ class UserResource(Resource):
         return {'message': 'User deleted successfully'}
 
 class StudentResource(Resource):
-    @jwt_required()
+    @login_required
     @role_required('admin', 'teacher')
     def get(self, student_id=None):
         if student_id:
@@ -98,7 +125,7 @@ class StudentResource(Resource):
         students = Student.query.all()
         return student_schema.dump(students, many=True)
 
-    @jwt_required()
+    @login_required
     @role_required('admin')
     def post(self):
         data = request.get_json()
@@ -132,7 +159,7 @@ class StudentResource(Resource):
         
         return {'message': 'Student created successfully'}, 201
     
-    @jwt_required()
+    @login_required
     @role_required('admin')
     def put(self, student_id):
         student = Student.query.get_or_404(student_id)
@@ -162,7 +189,7 @@ class StudentResource(Resource):
         updated_student = Student.query.get(student_id)
         return {'message': 'Student updated successfully', 'student': student_schema.dump(updated_student)}, 200
 
-    @jwt_required()
+    @login_required
     @role_required('admin')
     def delete(self, student_id):
         student = Student.query.get_or_404(student_id)
@@ -171,7 +198,7 @@ class StudentResource(Resource):
         return {'message': 'Student deleted successfully'}
 
 class TeacherResource(Resource):
-    @jwt_required()
+    @login_required
     @role_required('admin')
     def get(self, teacher_id=None):
         if teacher_id:
@@ -180,7 +207,7 @@ class TeacherResource(Resource):
         teachers = Teacher.query.all()
         return teacher_schema.dump(teachers, many=True)
 
-    @jwt_required()
+    @login_required
     @role_required('admin')
     def post(self):
         data = request.get_json()
@@ -212,7 +239,7 @@ class TeacherResource(Resource):
 
 
 
-    @jwt_required()
+    @login_required
     @role_required('admin')
     def put(self, teacher_id):
         teacher = Teacher.query.get_or_404(teacher_id)
@@ -238,7 +265,7 @@ class TeacherResource(Resource):
         return {'message': 'Teacher updated successfully'}, 200
 
 
-    @jwt_required()
+    @login_required
     @role_required('admin')
     def delete(self, teacher_id):
         teacher = Teacher.query.get_or_404(teacher_id)
@@ -247,7 +274,7 @@ class TeacherResource(Resource):
         return {'message': 'Teacher deleted successfully'}
 
 class CourseResource(Resource):
-    @jwt_required()
+    @login_required
     @role_required('admin', 'teacher', 'student')
     def get(self, course_id=None):
         if course_id:
@@ -256,7 +283,7 @@ class CourseResource(Resource):
         courses = Course.query.all()
         return course_schema.dump(courses, many=True)
 
-    @jwt_required()
+    @login_required
     @role_required('admin')
     def post(self):
         data = request.get_json()
@@ -285,7 +312,7 @@ class CourseResource(Resource):
         
         return {'message': 'Course created successfully', 'id': new_course.id}, 201
 
-    @jwt_required()
+    @login_required
     @role_required('admin')
     def put(self, course_id):
         course = Course.query.get_or_404(course_id)
@@ -304,7 +331,7 @@ class CourseResource(Resource):
         db.session.commit()
         return {'message': 'Course updated successfully'}
 
-    @jwt_required()
+    @login_required
     @role_required('admin')
     def delete(self, course_id):
         course = Course.query.get_or_404(course_id)
@@ -313,12 +340,11 @@ class CourseResource(Resource):
         return {'message': 'Course deleted successfully'}
 
 class EnrollmentResource(Resource):
-    @jwt_required()
+    @login_required
     @role_required('admin', 'teacher', 'student')
     def get(self, enrollment_id=None):
-        claims = get_jwt()
-        user_id = get_jwt_identity()
-        user_role = claims.get('role')
+        user_id = session.get('user_id')
+        user_role = session.get('role')
         if enrollment_id:
             enrollment = Enrollment.query.get_or_404(enrollment_id)
             if user_role == 'student' and enrollment.student.user_id != user_id:
@@ -328,14 +354,23 @@ class EnrollmentResource(Resource):
                 if not teacher or enrollment.course not in teacher.courses:
                     return {'message': 'Unauthorized'}, 403
             return self.serialize_enrollment(enrollment)
-        if user_role == 'admin':
-            enrollments = Enrollment.query.all()
+        # Handle list request
+        
+        if user_role == 'student':
+            student = Student.query.filter_by(user_id=user_id).first()
+            if not student:
+                return {'message': 'Student not found'}, 404
+            enrollments = Enrollment.query.filter_by(student_id=student.id).all()
         elif user_role == 'teacher':
             teacher = Teacher.query.filter_by(user_id=user_id).first()
-            enrollments = Enrollment.query.filter(Enrollment.course_id.in_([c.id for c in teacher.courses])).all()
-        elif user_role == 'student':
-            student = Student.query.filter_by(user_id=user_id).first()
-            enrollments = Enrollment.query.filter_by(student_id=student.id).all()
+            if not teacher:
+                return {'message': 'Teacher not found'}, 404
+            enrollments = Enrollment.query.filter(
+                Enrollment.course_id.in_([c.id for c in teacher.courses])
+            ).all()
+        else:  # admin
+            enrollments = Enrollment.query.all()
+
         return [self.serialize_enrollment(e) for e in enrollments]
     def serialize_enrollment(self, enrollment):
         return {
@@ -363,8 +398,7 @@ class EnrollmentResource(Resource):
             'course_name': course.course_name,
             'course_code': course.course_code
         }
-
-    @jwt_required()
+    @login_required
     @role_required('admin', 'teacher')
     def post(self):
         data = request.get_json()
@@ -372,44 +406,59 @@ class EnrollmentResource(Resource):
             validate_enrollment_data(data)
         except ValidationError as err:
             return {'errors': err.messages}, 400
-        new_enrollment = Enrollment(student_id=data['student_id'], course_id=data['course_id'])
-        db.session.add(new_enrollment)
-        db.session.commit()
-        return {'message': 'Enrollment created successfully'}, 201
-
-    @jwt_required()
+        new_enrollment = Enrollment(
+            student_id=data['student_id'], 
+            course_id=data['course_id']
+        )
+        if 'grade' in data:
+            new_enrollment.grade = data['grade']
+        try:
+            db.session.add(new_enrollment)
+            db.session.commit()
+            return {'message': 'Enrollment created successfully'}, 201
+        except Exception as e:
+            db.session.rollback()
+            return {'message': 'An error occurred while creating the enrollment', 'error': str(e)}, 500
+    @login_required
     @role_required('admin', 'teacher')
     def put(self, enrollment_id):
-        claims = get_jwt()
-        user_id = get_jwt_identity()
-        user_role = claims.get('role')
-
+        user_id = session.get('user_id')
+        user_role = session.get('role')
         enrollment = Enrollment.query.get_or_404(enrollment_id)
-        
         if user_role == 'teacher':
             teacher = Teacher.query.filter_by(user_id=user_id).first()
             if not teacher or enrollment.course not in teacher.courses:
                 return {'message': 'Unauthorized'}, 403
-
         data = request.get_json()
         try:
             validate_enrollment_data(data)
         except ValidationError as err:
             return {'errors': err.messages}, 400
-        enrollment.grade = data['grade']
-        db.session.commit()
-        return {'message': 'Grade updated successfully'}
-
-    @jwt_required()
+        if 'grade' in data:
+            enrollment.grade = data['grade']
+        try:
+            db.session.commit()
+            return {'message': 'Grade updated successfully'}
+        except Exception as e:
+            db.session.rollback()
+            return {'message': 'An error occurred while updating the grade', 'error': str(e)}, 500
+    @login_required
     @role_required('admin')
     def delete(self, enrollment_id):
         enrollment = Enrollment.query.get_or_404(enrollment_id)
-        db.session.delete(enrollment)
-        db.session.commit()
-        return {'message': 'Enrollment deleted successfully'}
+        try:
+            db.session.delete(enrollment)
+            db.session.commit()
+            return {'message': 'Enrollment deleted successfully'}
+        except Exception as e:
+            db.session.rollback()
+            return {'message': 'An error occurred while deleting the enrollment', 'error': str(e)}, 500
 
+
+# Register resources
 api.add_resource(UserRegistration, '/register')
 api.add_resource(UserLogin, '/login')
+api.add_resource(UserLogout, '/logout')  # Add this line
 api.add_resource(UserResource, '/users', '/users/<int:user_id>')
 api.add_resource(StudentResource, '/students', '/students/<int:student_id>')
 api.add_resource(TeacherResource, '/teachers', '/teachers/<int:teacher_id>')

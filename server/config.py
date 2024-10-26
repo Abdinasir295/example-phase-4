@@ -1,4 +1,9 @@
+# config.py
 SQLALCHEMY_DATABASE_URI = 'sqlite:///school_system.db'
 SQLALCHEMY_TRACK_MODIFICATIONS = False
-SECRET_KEY = '123456' 
-JWT_SECRET_KEY = '678999'  
+SECRET_KEY = '123456'
+SESSION_TYPE = 'filesystem'
+SESSION_COOKIE_SECURE = False  # Set to True in production with HTTPS
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'Lax'
+CORS_HEADERS = 'Content-Type'
