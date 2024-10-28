@@ -65,7 +65,7 @@ class UserLogout(Resource):
         session.clear()
         return {'message': 'Logged out successfully'}, 200
 
-class UserResource(Resource):
+
     @login_required
     @role_required('admin')
     def get(self, user_id=None):
