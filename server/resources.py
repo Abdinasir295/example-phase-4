@@ -116,8 +116,8 @@ class UserLogout(Resource):
         return {'message': 'User deleted successfully'}
 
 class StudentResource(Resource):
-    @login_required
-    @role_required('admin', 'teacher')
+    # @login_required
+    # @role_required('admin', 'teacher')
     def get(self, student_id=None):
         if student_id:
             student = Student.query.get_or_404(student_id)
@@ -125,8 +125,8 @@ class StudentResource(Resource):
         students = Student.query.all()
         return student_schema.dump(students, many=True)
 
-    @login_required
-    @role_required('admin')
+    # @login_required
+    # @role_required('admin')
     def post(self):
         data = request.get_json()
         try:
@@ -159,8 +159,8 @@ class StudentResource(Resource):
         
         return {'message': 'Student created successfully'}, 201
     
-    @login_required
-    @role_required('admin')
+    # @login_required
+    # @role_required('admin')
     def put(self, student_id):
         student = Student.query.get_or_404(student_id)
         data = request.get_json()
@@ -189,8 +189,8 @@ class StudentResource(Resource):
         updated_student = Student.query.get(student_id)
         return {'message': 'Student updated successfully', 'student': student_schema.dump(updated_student)}, 200
 
-    @login_required
-    @role_required('admin')
+    # @login_required
+    # @role_required('admin')
     def delete(self, student_id):
         student = Student.query.get_or_404(student_id)
         db.session.delete(student)
@@ -198,8 +198,8 @@ class StudentResource(Resource):
         return {'message': 'Student deleted successfully'}
 
 class TeacherResource(Resource):
-    @login_required
-    @role_required('admin')
+    # @login_required
+    # @role_required('admin')
     def get(self, teacher_id=None):
         if teacher_id:
             teacher = Teacher.query.get_or_404(teacher_id)
@@ -207,8 +207,8 @@ class TeacherResource(Resource):
         teachers = Teacher.query.all()
         return teacher_schema.dump(teachers, many=True)
 
-    @login_required
-    @role_required('admin')
+    # @login_required
+    # @role_required('admin')
     def post(self):
         data = request.get_json()
         try:
@@ -239,8 +239,8 @@ class TeacherResource(Resource):
 
 
 
-    @login_required
-    @role_required('admin')
+    # @login_required
+    # @role_required('admin')
     def put(self, teacher_id):
         teacher = Teacher.query.get_or_404(teacher_id)
         data = request.get_json()
@@ -265,8 +265,8 @@ class TeacherResource(Resource):
         return {'message': 'Teacher updated successfully'}, 200
 
 
-    @login_required
-    @role_required('admin')
+    # @login_required
+    # @role_required('admin')
     def delete(self, teacher_id):
         teacher = Teacher.query.get_or_404(teacher_id)
         db.session.delete(teacher)
@@ -274,8 +274,8 @@ class TeacherResource(Resource):
         return {'message': 'Teacher deleted successfully'}
 
 class CourseResource(Resource):
-    @login_required
-    @role_required('admin', 'teacher', 'student')
+    # @login_required
+    # @role_required('admin', 'teacher', 'student')
     def get(self, course_id=None):
         if course_id:
             course = Course.query.get_or_404(course_id)
@@ -283,8 +283,8 @@ class CourseResource(Resource):
         courses = Course.query.all()
         return course_schema.dump(courses, many=True)
 
-    @login_required
-    @role_required('admin')
+    # @login_required
+    # @role_required('admin')
     def post(self):
         data = request.get_json()
         
@@ -312,8 +312,8 @@ class CourseResource(Resource):
         
         return {'message': 'Course created successfully', 'id': new_course.id}, 201
 
-    @login_required
-    @role_required('admin')
+    # @login_required
+    # @role_required('admin')
     def put(self, course_id):
         course = Course.query.get_or_404(course_id)
         data = request.get_json()
@@ -331,8 +331,8 @@ class CourseResource(Resource):
         db.session.commit()
         return {'message': 'Course updated successfully'}
 
-    @login_required
-    @role_required('admin')
+    # @login_required
+    # @role_required('admin')
     def delete(self, course_id):
         course = Course.query.get_or_404(course_id)
         db.session.delete(course)
@@ -340,8 +340,8 @@ class CourseResource(Resource):
         return {'message': 'Course deleted successfully'}
 
 class EnrollmentResource(Resource):
-    @login_required
-    @role_required('admin', 'teacher', 'student')
+    # @login_required
+    # @role_required('admin', 'teacher', 'student')
     def get(self, enrollment_id=None):
         user_id = session.get('user_id')
         user_role = session.get('role')
@@ -398,8 +398,8 @@ class EnrollmentResource(Resource):
             'course_name': course.course_name,
             'course_code': course.course_code
         }
-    @login_required
-    @role_required('admin', 'teacher')
+    # @login_required
+    # @role_required('admin', 'teacher')
     def post(self):
         data = request.get_json()
         try:
@@ -419,8 +419,8 @@ class EnrollmentResource(Resource):
         except Exception as e:
             db.session.rollback()
             return {'message': 'An error occurred while creating the enrollment', 'error': str(e)}, 500
-    @login_required
-    @role_required('admin', 'teacher')
+    # @login_required
+    # @role_required('admin', 'teacher')
     def put(self, enrollment_id):
         user_id = session.get('user_id')
         user_role = session.get('role')
@@ -442,8 +442,8 @@ class EnrollmentResource(Resource):
         except Exception as e:
             db.session.rollback()
             return {'message': 'An error occurred while updating the grade', 'error': str(e)}, 500
-    @login_required
-    @role_required('admin')
+    # @login_required
+    # @role_required('admin')
     def delete(self, enrollment_id):
         enrollment = Enrollment.query.get_or_404(enrollment_id)
         try:
@@ -459,7 +459,6 @@ class EnrollmentResource(Resource):
 api.add_resource(UserRegistration, '/register')
 api.add_resource(UserLogin, '/login')
 api.add_resource(UserLogout, '/logout')  # Add this line
-api.add_resource(UserResource, '/users', '/users/<int:user_id>')
 api.add_resource(StudentResource, '/students', '/students/<int:student_id>')
 api.add_resource(TeacherResource, '/teachers', '/teachers/<int:teacher_id>')
 api.add_resource(CourseResource, '/courses', '/courses/<int:course_id>')
